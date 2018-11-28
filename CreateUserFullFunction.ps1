@@ -7,6 +7,9 @@ Import-PSSession $Session -DisableNameChecking -AllowClobber
 $FirstName = @()
 $MiddleInitial = @()
 $LastName = @()
+$UsernameSAMNoSpecial = @()
+$FirstNameNoSpecial = @()
+$LastNameNoSpecial = @()
 $PhoneExtension = @()
 $Username = @()
 $UniqueUserName = @()
@@ -24,18 +27,22 @@ $EmailAlias = @()
 $global:UserTemplateCopyFrom = @()
 $global:UserTemplateCheck = @()
 $global:UserTemplateCopyFrom = @()
-$RetentionPolicy = "Company Default - Delete all items except Notes over 3 years old"
+$global:ViewEntCheck
+$ViewEnt = @()
+$Global:EntitlementsOU = "DC=CORP,DC=COM"
+$RetentionPolicy = "Default - Delete all items except Notes over 3 years old"
 $TempPassword = "Pa$$word1"
-$PrimaryEmailDomain = "@domain2.com"
-$DomainName = "@domain.com"
+$PrimaryEmailDomain = "@example2.com"
+$DomainName = "example.com"
 $DefaultAddress = "SR 405 Kennedy Space Center"
 $DefaultState = "FL"
 $DefaultZip = "32899"
 $DefaultCountry = "US"
 $DefaultCity = "Cape Canaveral"
 $DefaultCompany = "NASA"
-$FileServer = "\\FileServer\H_Drives$" 
+$FileServer = "\\FileServer\H_Drives$"
 $i = $Null
+$global:UserManager = $null
 
 CLS
 #------------------------------------------------Create username start-----------------------------------------#
@@ -52,7 +59,7 @@ $LastName = (Read-Host -Prompt 'Please input the users last name.')
 $PhoneExtension = (Read-Host -Prompt 'Please input the users 4 digit exension, numbers only')
 
 #Set users description of their job, for example "Call Center Representative"
-$JobDescription = (Read-Host -Prompt 'Please input a description for the users posistion, for exampole "Call Center Representative"')
+$JobDescription = (Read-Host -Prompt 'Please input a title for the users position, for example "Call Center Representative"')
 
 
 #Validate our inputs to make sure they fit the criteria needed
@@ -60,20 +67,24 @@ $JobDescription = (Read-Host -Prompt 'Please input a description for the users p
 #Ensure that first name is not empty
 while ([string]::IsNullOrWhiteSpace($FirstName)) {$FirstName = read-host 'You left the first name empty, please enter a first name.'}
 #Ensure that middle initial isn't not more than 1 character or empty
-while ([string]::IsNullOrWhiteSpace($MiddleInitial) -or ($MiddleInitial.Length -gt 1)) {$MiddleInitial = read-host 'You left the middle initial empty or input more than one character.'}
+#while ([string]::IsNullOrWhiteSpace($MiddleInitial) -or ($MiddleInitial.Length -gt 1)) {$MiddleInitial = read-host 'You left the middle initial empty or input more than one character.'}
 #Ensure that last name is not empty
 while ([string]::IsNullOrWhiteSpace($LastName)) {$LastName = read-host 'You left the last name empty, please enter a last name.'}
 #Ensure that phone extension is not empty
 while ([string]::IsNullOrWhiteSpace($PhoneExtension)) {$PhoneExtension = read-host 'You left the phone extension empty, please input a 4 digit extension'}
 #Ensure that phone extension is only 4 numbers
-while ($PhoneExtension -notmatch '[0-9][0-9][0-9][0-9]') {$PhoneExtension = Read-Host -Prompt 'Please only use numbers in the phone extensione.'}
+while ($PhoneExtension -notmatch '[0-9][0-9][0-9][0-9]') {$PhoneExtension = Read-Host -Prompt 'Please only use numbers in the phone extensione and ensure it is 4 characters.'}
 #Ensure that phone extension is only 4 charcters long
 while ($PhoneExtension.Length -ne 4) {$PhoneExtension = Read-Host -Prompt 'Please only use the 4 digit extension'}
 #Ensure job description is not empty
-while ([string]::IsNullOrWhiteSpace($JobDescription)) {$JobDescription = read-host 'You left the job description empty, please input the users job description.'}
+while ([string]::IsNullOrWhiteSpace($JobDescription)) {$JobDescription = read-host 'You left the job description empty, please input the users job title.'}
 
 #Create user name
-$UsernameSAM = $FirstName.Substring(0,1) + $MiddleInitial + $LastName.Substring(0,6)
+$FirstNameNoSpecial = $Firstname -replace '[^\p{L}\p{Nd}]'
+$LastNameNoSpecial = $LastName -replace '[^\p{L}\p{Nd}]'
+
+$UsernameSAM = $FirstNameNoSpecial.Substring(0,1) + $MiddleInitial + $LastNameNoSpecial.Substring(0,6)
+$UsernameSAM = $UsernameSAM.ToLower()
 
 #Create Display Username
 $UserNameDisplay = $FirstName + " " + $LastName
@@ -83,9 +94,9 @@ $UserPrincipleName = $UniqueUserName + "@" + $DomainName
 
 #Check username does not exist, if it does add numbers
 CLS
-$UniqueUserName = $UsernameSAM 
+$UniqueUserName = $UsernameSAM
 while (Get-ADUser -Filter "SamAccountName -like '$UniqueUserName'"){$UniqueUserName = $UsernameSAM + ++$i}
-Write-Host "The new users username is $UniqueUsername"
+
 
 $UniqueNumberAdd = $i
 
@@ -96,6 +107,7 @@ $UserNameDisplay = $FirstName + " " + $LastName
 $UniqueDisplayName = $UserNameDisplay
 while (Get-ADUser -Filter "Name -eq '$UniqueDisplayName'"){$UniqueDisplayName = $UserNameDisplay + $UniqueNumberAdd}
 Write-Host "The new users username is $UniqueDisplayName"
+Write-Host "The new users logon name is $UniqueUsername"
 
 #--------------------------------------------Create Username End------------------------------------------------#
 
@@ -104,20 +116,20 @@ Write-Host "The new users username is $UniqueDisplayName"
 #--------------------------------------------Create user address start------------------------------------------#
 
 #Get users Street Address, if the input is left empty then it will automatically default to 618 Kenmoor Ave SE
-$UserStreetAddress = (Read-Host -Prompt "Please input the users street address, will default to $DefaultAddress if no input is provided")
+$UserStreetAddress = (Read-Host -Prompt "Please input the users street address, will default to $DefaultAddress, please press enter if this is correct")
 
 #Get users city
-$UserCity = (Read-Host -Prompt "Please input the users city, will default to $DefaultCity if nothing is input")
+$UserCity = (Read-Host -Prompt "Please input the users city, will default to $DefaultCity, please press enter if this is correct")
 
 #Get users state
-$UserState = (Read-Host -Prompt "Please input the users state initials only, if nothing is input it will default to' $DefaultState")
+$UserState = (Read-Host -Prompt "Please input the users state initials only, if nothing is input it will default to' $DefaultState, please press enter if this is correct")
 
 #Get user zip code
-$UserZipCode = (Read-Host -Prompt "Please input the users ZIP code in 5 digit format, if left blank will default to $DefaultZip")
+$UserZipCode = (Read-Host -Prompt "Please input the users ZIP code in 5 digit format, if left blank will default to $DefaultZip, please press enter if this is correct")
 
 
 #Get users country
-$UserCountry = (Read-Host -Prompt "Please enter two digit country code, if nothing is input this will default to $DefaultCountry")
+$UserCountry = (Read-Host -Prompt "Please enter two digit country code, if nothing is input this will default to $DefaultCountry, please press enter if this is correct")
 
 #Ensure that user street address is not empty if it is, uses default address 
 while ([string]::IsNullOrWhiteSpace($UserStreetAddress)) {$UserStreetAddress = $DefaultAddress}
@@ -144,7 +156,7 @@ while ($UserCountry.Length -ne 2) {$UserCountry = Read-Host -Prompt 'Please only
 #-----------------------------------------------------Create user organization attributes start-----------------------#
 #Function checks for manager existence in active directory
 #Function checks for manager existence in active directory
-$global:UserManager = $null
+
 
 function ManagerCheck {
 $UserManagerCheck = Get-ADUser -Filter "SamAccountName -like '$UserManager'"
@@ -163,13 +175,13 @@ else
 }
 
 #Gather organziational data
-$UserTitle = (Read-Host -Prompt "What is the users job title, for example Network Administrator.")
+#$UserTitle = (Read-Host -Prompt "What is the users job title, for example Network Administrator.")
 $UserDepartment = (Read-Host -Prompt "What is the users department, for example IT.")
-$UserCompany = (Read-Host -Prompt "What company does the user work for, if you do not enter data it will default to $DefaultCompany.")
+$UserCompany = (Read-Host -Prompt "What company does the user work for, if you do not enter data it will default to $DefaultCompany, please press enter if this is correct.")
 $UserManager = (Read-Host -Prompt "Who is the users direct supervisor, please use the managers username and not full name.")
 
 #Check attribuites have been populated
-while ([string]::IsNullOrWhiteSpace($UserTitle)) {$UserTitle = Read-Host 'You left the users title empty, please input a title for this user.'}
+#while ([string]::IsNullOrWhiteSpace($UserTitle)) {$UserTitle = Read-Host 'You left the users title empty, please input a title for this user.'}
 while ([string]::IsNullOrWhiteSpace($UserDepartment)) {$UserDepartment = Read-Host 'You did not put the user in a department, please input the department the user is part of.'}
 #Default company name if no input
 while ([string]::IsNullOrWhiteSpace($UserCompany)) {$UserCompany = $DefaultCompany }
@@ -191,12 +203,21 @@ $EmailAddressExtra = $EmailAddress + $PrimaryEmailDomain
 
 #----------------------------------------------------Create user email end--------------------------------------------------#
 
+
+
 #----------------------------------------------------Copy permissions from template start-----------------------------------#
+CLS
+Write-Host "The available template users are `r`n"
+Get-ADUser -Filter * -SearchBase $TemplateOU | Select -ExpandProperty SAMAccountName | Sort-Object -Property SAMAccountName
+$UserTemplateCopyFrom = (Read-Host -Prompt "`r`nWhat template would you like to copy from, only accounts in the User Template OU will be accepted ")
+
 function TemplateUserCheck {
-$global:UserTemplateCheck = Get-ADUser -SearchBase "OU=User Templates,OU=ASR Users,DC=ASRCORP,DC=COM" -Filter "SamAccountName -like '$UserTemplateCopyFrom'"
+$UserTemplateCheck = Get-ADUser -SearchBase $global:TemplateOU -Filter "SamAccountName -like '$UserTemplateCopyFrom'"
 if ($UserTemplateCheck = [string]::IsNullOrWhiteSpace($UserTemplateCheck))
     {
       cls
+      Write-Host "The available template users are $TemplateOU`r`n"
+      Get-ADUser -Filter * -SearchBase $Global:TemplateOU | Sort-Object -Property Name | Select -ExpandProperty Name 
       $global:UserTemplateCopyFrom = (Read-Host -Prompt "User template not found in 'User Template OU'")
       TemplateUserCheck  
     }
@@ -207,17 +228,43 @@ else
     }
 }
 
-$UserTemplateCopyFrom = (Read-Host -Prompt "What template would you like to copy from, only accounts in the User Template OU will be accepted ")
+
 TemplateUserCheck
 
 
 #----------------------------------------------------Copy permissions from template end-------------------------------------#
 
+#----------------------------------------------------Start Horizon View Entitlement-------------------------------------------#
+CLS
+Write-Host "The available entitlement groups are `r`n"
+Get-ADGroup -Filter * -SearchBase $EntitlementsOU | Select -ExpandProperty Name | Sort-Object -Property Name
+$ViewEnt = (Read-Host -Prompt "`r`nWhat Horizon View Entitlement group should the user be made part of ")
+
+function AddViewEnt {
+$ViewEntCheck = Get-ADGroup -Filter "cn -like '$ViewEnt'"
+if ($ViewEntCheck = [string]::IsNullOrWhiteSpace($ViewEntCheck))
+    {
+      cls
+      Write-Host "The available entitlement groups are `r`n"
+      Get-ADGroup -Filter * -SearchBase $Global:EntitlementsOU | Sort-Object -Property Name | Select -ExpandProperty Name 
+      $global:ViewEnt = (Read-Host -Prompt "`r`nHorizon View Entitlement group not found, please try again using full group name")
+      AddViewEnt
+    }
+else
+    { 
+        CLS
+    }
+}
+
+AddViewEnt
+#-------------------------------------------End Horizon View Entitlement------------------------------------------------#
+
 #----------------------------------------------------Create User Start------------------------------------------------------#
 
 #Create user
-New-ADUser -Name $UniqueDisplayName -DisplayName $UniqueDisplayName -SamAccountName $UniqueUserName -GivenName $FirstName -Surname $LastName -Initials $MiddleInitial -OfficePhone $PhoneExtension -StreetAddress $UserStreetAddress -City $UserCity -State $UserState -Description $JobDescription -PostalCode $UserZipCode -Country "US" -UserPrincipalName $UserPrincipleName -Title $UserTitle -Department $UserDepartment -Company $UserCompany -Manager $UserManager
+New-ADUser -Name $UniqueDisplayName -DisplayName $UniqueDisplayName -SamAccountName $UniqueUserName -GivenName $FirstName -Surname $LastName -Initials $MiddleInitial -OfficePhone $PhoneExtension -StreetAddress $UserStreetAddress -City $UserCity -State $UserState -Description $JobDescription -PostalCode $UserZipCode -Country "US" -UserPrincipalName $UserPrincipleName -Title $JobDescription -Department $UserDepartment -Company $UserCompany -Manager $UserManager
 Write-Host "Creating user and mailbox, this can take up to 40 seconds, please be patient"
+Set-Aduser -Identity $UniqueUserName -ChangePasswordAtLogon $false
 #Wait 20 seconds to make sure user creation completes and propegates
 Start-Sleep -Seconds 20
 #Attach mailbox to new user
@@ -226,16 +273,22 @@ Enable-Mailbox -Identity $UniqueDisplayName
 Set-Mailbox $UniqueDisplayName -EmailAddresses @{add=$EmailAddressExtra} -EmailAddressPolicyEnabled $False 
 #Set email retention policies
 Set-Mailbox $UniqueDisplayName -PrimarySmtpAddress $EmailAddressExtra -RetentionPolicy $RetentionPolicy
+#Disable Active Sync
+Set-CasMailbox -Identity $UniqueDisplayName  -ActiveSyncEnabled $false
 #Copy permissions from user templates
 get-ADuser -identity $UserTemplateCopyFrom -properties memberof | select-object memberof -expandproperty memberof | Add-AdGroupMember -Members $UniqueUserName
+#Adds user to Horizon View Entitlement
+Add-ADGroupMember -Identity $ViewEnt -Members $UsernameSAM
 
 #----------------------------------------------------Create User End--------------------------------------------------------#
+
 
 
 #----------------------------------------------------Create Home Drive Start------------------------------------------------#
 
 #Creating home directory and set permissions
-new-item -path "$FileServer\$UniqueUserName" -ItemType Directory
+$UniqueUserNameLower = $UniqueUserName.ToLower()
+new-item -path "$FileServer\$UniqueUserNameLower" -ItemType Directory
 $acl = get-acl "$FileServer\$UniqueUserName"
 $FileSystemRights = [System.Security.AccessControl.FileSystemRights]"FullControl"
 $AccessControlType = [System.Security.AccessControl.AccessControlType]::Allow

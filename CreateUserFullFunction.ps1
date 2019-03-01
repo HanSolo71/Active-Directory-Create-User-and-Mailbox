@@ -43,7 +43,7 @@ $DefaultCompany = "NASA"
 $FileServer = "\\FileServer\H_Drives$"
 $i = $Null
 $global:UserManager = $null
-
+$global:TemplateOU = "DC=CORP,DC=COM" 
 CLS
 #------------------------------------------------Create username start-----------------------------------------#
 #Gather users first name, required input and must not be empty or null
@@ -209,7 +209,9 @@ $EmailAddressExtra = $EmailAddress + $PrimaryEmailDomain
 CLS
 Write-Host "The available template users are `r`n"
 Get-ADUser -Filter * -SearchBase $TemplateOU | Select -ExpandProperty SAMAccountName | Sort-Object -Property SAMAccountName
-$UserTemplateCopyFrom = (Read-Host -Prompt "`r`nWhat template would you like to copy from, only accounts in the User Template OU will be accepted ")
+$global:UserTemplateCopyFrom = (Read-Host -Prompt "`r`nWhat template would you like to copy from, only accounts in the User Template OU will be accepted ")
+
+
 
 function TemplateUserCheck {
 $UserTemplateCheck = Get-ADUser -SearchBase $global:TemplateOU -Filter "SamAccountName -like '$UserTemplateCopyFrom'"
@@ -217,8 +219,9 @@ if ($UserTemplateCheck = [string]::IsNullOrWhiteSpace($UserTemplateCheck))
     {
       cls
       Write-Host "The available template users are $TemplateOU`r`n"
-      Get-ADUser -Filter * -SearchBase $Global:TemplateOU | Sort-Object -Property Name | Select -ExpandProperty Name 
+      Get-ADUser -Filter * -SearchBase $TemplateOU | Select -ExpandProperty SAMAccountName | Sort-Object -Property SAMAccountName
       $global:UserTemplateCopyFrom = (Read-Host -Prompt "User template not found in 'User Template OU'")
+      $UserTemplateCheck = $null
       TemplateUserCheck  
     }
 else

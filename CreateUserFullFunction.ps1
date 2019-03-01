@@ -1,4 +1,4 @@
-﻿
+
 
 $ExchangeServer = 'exchange.corp.com'
 $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$ExchangeServer/PowerShell/ 
@@ -42,8 +42,9 @@ $DefaultCity = "Cape Canaveral"
 $DefaultCompany = "NASA"
 $FileServer = "\\FileServer\H_Drives$"
 $i = $Null
-$global:UserManager = $null
-$global:TemplateOU = "DC=CORP,DC=COM" 
+$global:UserManager = @()
+$global:TemplateOU = "DC=CORP,DC=COM"
+
 CLS
 #------------------------------------------------Create username start-----------------------------------------#
 #Gather users first name, required input and must not be empty or null
@@ -56,7 +57,7 @@ $MiddleInitial = (Read-Host -Prompt 'Please input the users middle initial.')
 $LastName = (Read-Host -Prompt 'Please input the users last name.')
 
 #Gathers user phone extension, required input, mustn ot be empty or null, and must only user numbers
-$PhoneExtension = (Read-Host -Prompt 'Please input the users 4 digit exension, numbers only')
+$PhoneExtension = (Read-Host -Prompt 'Please input the users 4 digit exension, numbers only or leave this blank')
 
 #Set users description of their job, for example "Call Center Representative"
 $JobDescription = (Read-Host -Prompt 'Please input a title for the users position, for example "Call Center Representative"')
@@ -75,7 +76,7 @@ while ([string]::IsNullOrWhiteSpace($PhoneExtension)) {$PhoneExtension = read-ho
 #Ensure that phone extension is only 4 numbers
 while ($PhoneExtension -notmatch '[0-9][0-9][0-9][0-9]') {$PhoneExtension = Read-Host -Prompt 'Please only use numbers in the phone extensione and ensure it is 4 characters.'}
 #Ensure that phone extension is only 4 charcters long
-while ($PhoneExtension.Length -ne 4) {$PhoneExtension = Read-Host -Prompt 'Please only use the 4 digit extension'}
+while ($PhoneExtension.Length -ne "" -or $PhoneExtension.Length -ne 4) {$PhoneExtension = Read-Host -Prompt 'Please only use the 4 digit extension'}
 #Ensure job description is not empty
 while ([string]::IsNullOrWhiteSpace($JobDescription)) {$JobDescription = read-host 'You left the job description empty, please input the users job title.'}
 
@@ -83,8 +84,16 @@ while ([string]::IsNullOrWhiteSpace($JobDescription)) {$JobDescription = read-ho
 $FirstNameNoSpecial = $Firstname -replace '[^\p{L}\p{Nd}]'
 $LastNameNoSpecial = $LastName -replace '[^\p{L}\p{Nd}]'
 
+if ($LastNameNoSpecial.Length -ge 6)
+{ 
 $UsernameSAM = $FirstNameNoSpecial.Substring(0,1) + $MiddleInitial + $LastNameNoSpecial.Substring(0,6)
+}
+else
+{
+$UsernameSAM = $FirstNameNoSpecial.Substring(0,1) + $MiddleInitial + $LastNameNoSpecial
+}
 $UsernameSAM = $UsernameSAM.ToLower()
+
 
 #Create Display Username
 $UserNameDisplay = $FirstName + " " + $LastName
@@ -105,7 +114,7 @@ $UserPrincipleName = $UniqueUserName + "@" + $DomainName
 
 $UserNameDisplay = $FirstName + " " + $LastName
 $UniqueDisplayName = $UserNameDisplay
-while (Get-ADUser -Filter "Name -eq '$UniqueDisplayName'"){$UniqueDisplayName = $UserNameDisplay + $UniqueNumberAdd}
+while (Get-ADUser -Filter 'Name -eq "$UniqueDisplayName"'){$UniqueDisplayName = $UserNameDisplay + $UniqueNumberAdd}
 Write-Host "The new users username is $UniqueDisplayName"
 Write-Host "The new users logon name is $UniqueUsername"
 
@@ -174,6 +183,7 @@ else
     }
 }
 
+
 #Gather organziational data
 #$UserTitle = (Read-Host -Prompt "What is the users job title, for example Network Administrator.")
 $UserDepartment = (Read-Host -Prompt "What is the users department, for example IT.")
@@ -206,7 +216,6 @@ $EmailAddressExtra = $EmailAddress + $PrimaryEmailDomain
 
 
 #----------------------------------------------------Copy permissions from template start-----------------------------------#
-CLS
 Write-Host "The available template users are `r`n"
 Get-ADUser -Filter * -SearchBase $TemplateOU | Select -ExpandProperty SAMAccountName | Sort-Object -Property SAMAccountName
 $global:UserTemplateCopyFrom = (Read-Host -Prompt "`r`nWhat template would you like to copy from, only accounts in the User Template OU will be accepted ")
@@ -301,4 +310,4 @@ $AccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule ("$D
 $acl.AddAccessRule($AccessRule)
 Set-Acl -Path "$FileServer\$UniqueUserName" -AclObject $acl -ea Stop
 
-#----------------------------------------------------Create Home Drive End--------------------------------------------------#
+#----------------------------------------------------Create Home Drive End--------------------------------------------------#----#

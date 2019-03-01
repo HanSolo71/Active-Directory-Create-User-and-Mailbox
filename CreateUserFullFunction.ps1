@@ -76,7 +76,7 @@ while ([string]::IsNullOrWhiteSpace($PhoneExtension)) {$PhoneExtension = read-ho
 #Ensure that phone extension is only 4 numbers
 while ($PhoneExtension -notmatch '[0-9][0-9][0-9][0-9]') {$PhoneExtension = Read-Host -Prompt 'Please only use numbers in the phone extensione and ensure it is 4 characters.'}
 #Ensure that phone extension is only 4 charcters long
-while ($PhoneExtension.Length -ne "" -or $PhoneExtension.Length -ne 4) {$PhoneExtension = Read-Host -Prompt 'Please only use the 4 digit extension'}
+while ($PhoneExtension.Length -ne 4) {$PhoneExtension = Read-Host -Prompt 'Please only use the 4 digit extension'}
 #Ensure job description is not empty
 while ([string]::IsNullOrWhiteSpace($JobDescription)) {$JobDescription = read-host 'You left the job description empty, please input the users job title.'}
 

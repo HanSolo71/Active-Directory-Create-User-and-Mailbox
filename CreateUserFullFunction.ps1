@@ -50,33 +50,37 @@ CLS
 #Gather users first name, required input and must not be empty or null
 $FirstName = (Read-Host -Prompt 'Please input the users first name.')
 
+#Ensure that first name is not empty
+while ([string]::IsNullOrWhiteSpace($FirstName)) {$FirstName = read-host 'You left the first name empty, please enter a first name.'}
+
 #Gather users middle initial, required input and must not be empty or null and must only be one character
 $MiddleInitial = (Read-Host -Prompt 'Please input the users middle initial.')
+(Get-Culture).TextInfo.ToTitleCase($MiddleInitial)
+
+#Ensure that middle initial isn't not more than 1 character or empty
+while ([string]::IsNullOrWhiteSpace($MiddleInitial) -or ($MiddleInitial.Length -gt 1)) {$MiddleInitial = read-host 'You left the middle initial empty or input more than one character.'}
 
 #Gather users last name, required input and must not be empty or null
 $LastName = (Read-Host -Prompt 'Please input the users last name.')
 
+#Ensure that last name is not empty
+while ([string]::IsNullOrWhiteSpace($LastName)) {$LastName = read-host 'You left the last name empty, please enter a last name.'}
+
 #Gathers user phone extension, required input, mustn ot be empty or null, and must only user numbers
-$PhoneExtension = (Read-Host -Prompt 'Please input the users 4 digit exension, numbers only or leave this blank')
+$PhoneExtension = (Read-Host -Prompt 'Please input the users 4 digit exension, numbers only')
+
+#Ensure that phone extension is only 4 numbers
+while ($PhoneExtension -notmatch '[0-9][0-9][0-9][0-9]') {$PhoneExtension = Read-Host -Prompt 'Please only use numbers in the phone extensione and ensure it is 4 characters.'}
+
+#Ensure that phone extension is only 4 charcters long
+while ($PhoneExtension.Length -ne 4) {$PhoneExtension = Read-Host -Prompt 'Please only use the 4 digit extension'}
+
+#Ensure that phone extension is not empty
+while ([string]::IsNullOrWhiteSpace($PhoneExtension)) {$PhoneExtension = read-host 'You left the phone extension empty, please input a 4 digit extension'}
 
 #Set users description of their job, for example "Call Center Representative"
 $JobDescription = (Read-Host -Prompt 'Please input a title for the users position, for example "Call Center Representative"')
 
-
-#Validate our inputs to make sure they fit the criteria needed
-
-#Ensure that first name is not empty
-while ([string]::IsNullOrWhiteSpace($FirstName)) {$FirstName = read-host 'You left the first name empty, please enter a first name.'}
-#Ensure that middle initial isn't not more than 1 character or empty
-#while ([string]::IsNullOrWhiteSpace($MiddleInitial) -or ($MiddleInitial.Length -gt 1)) {$MiddleInitial = read-host 'You left the middle initial empty or input more than one character.'}
-#Ensure that last name is not empty
-while ([string]::IsNullOrWhiteSpace($LastName)) {$LastName = read-host 'You left the last name empty, please enter a last name.'}
-#Ensure that phone extension is not empty
-while ([string]::IsNullOrWhiteSpace($PhoneExtension)) {$PhoneExtension = read-host 'You left the phone extension empty, please input a 4 digit extension'}
-#Ensure that phone extension is only 4 numbers
-while ($PhoneExtension -notmatch '[0-9][0-9][0-9][0-9]') {$PhoneExtension = Read-Host -Prompt 'Please only use numbers in the phone extensione and ensure it is 4 characters.'}
-#Ensure that phone extension is only 4 charcters long
-while ($PhoneExtension.Length -ne 4) {$PhoneExtension = Read-Host -Prompt 'Please only use the 4 digit extension'}
 #Ensure job description is not empty
 while ([string]::IsNullOrWhiteSpace($JobDescription)) {$JobDescription = read-host 'You left the job description empty, please input the users job title.'}
 
@@ -96,7 +100,7 @@ $UsernameSAM = $UsernameSAM.ToLower()
 
 
 #Create Display Username
-$UserNameDisplay = $FirstName + " " + $LastName
+(Get-Culture).TextInfo.ToTitleCase($FirstName + " " + $LastName)
 
 #Create User Principle Name
 $UserPrincipleName = $UniqueUserName + "@" + $DomainName

@@ -49,19 +49,21 @@ CLS
 #------------------------------------------------Create username start-----------------------------------------#
 #Gather users first name, required input and must not be empty or null
 $FirstName = (Read-Host -Prompt 'Please input the users first name.')
+$FirstName = (Get-Culture).TextInfo.ToTitleCase($FirstName)
 
 #Ensure that first name is not empty
 while ([string]::IsNullOrWhiteSpace($FirstName)) {$FirstName = read-host 'You left the first name empty, please enter a first name.'}
 
 #Gather users middle initial, required input and must not be empty or null and must only be one character
 $MiddleInitial = (Read-Host -Prompt 'Please input the users middle initial.')
-(Get-Culture).TextInfo.ToTitleCase($MiddleInitial)
+$MiddleInitial = (Get-Culture).TextInfo.ToTitleCase($MiddleInitial)
 
 #Ensure that middle initial isn't not more than 1 character or empty
 while ([string]::IsNullOrWhiteSpace($MiddleInitial) -or ($MiddleInitial.Length -gt 1)) {$MiddleInitial = read-host 'You left the middle initial empty or input more than one character.'}
 
 #Gather users last name, required input and must not be empty or null
 $LastName = (Read-Host -Prompt 'Please input the users last name.')
+$LastName = (Get-Culture).TextInfo.ToTitleCase($LastName)
 
 #Ensure that last name is not empty
 while ([string]::IsNullOrWhiteSpace($LastName)) {$LastName = read-host 'You left the last name empty, please enter a last name.'}
@@ -84,6 +86,7 @@ $JobDescription = (Read-Host -Prompt 'Please input a title for the users positio
 #Ensure job description is not empty
 while ([string]::IsNullOrWhiteSpace($JobDescription)) {$JobDescription = read-host 'You left the job description empty, please input the users job title.'}
 
+
 #Create user name
 $FirstNameNoSpecial = $Firstname -replace '[^\p{L}\p{Nd}]'
 $LastNameNoSpecial = $LastName -replace '[^\p{L}\p{Nd}]'
@@ -100,7 +103,7 @@ $UsernameSAM = $UsernameSAM.ToLower()
 
 
 #Create Display Username
-(Get-Culture).TextInfo.ToTitleCase($FirstName + " " + $LastName)
+$UserNameDisplay = ($FirstName + " " + $LastName)
 
 #Create User Principle Name
 $UserPrincipleName = $UniqueUserName + "@" + $DomainName
@@ -116,7 +119,6 @@ $UniqueNumberAdd = $i
 #Create User Principle Name
 $UserPrincipleName = $UniqueUserName + "@" + $DomainName
 
-$UserNameDisplay = $FirstName + " " + $LastName
 $UniqueDisplayName = $UserNameDisplay
 while (Get-ADUser -Filter 'Name -eq "$UniqueDisplayName"'){$UniqueDisplayName = $UserNameDisplay + $UniqueNumberAdd}
 Write-Host "The new users username is $UniqueDisplayName"
@@ -178,6 +180,7 @@ if ($UserManagerCheck = [string]::IsNullOrWhiteSpace($UserManagerCheck))
     {
       cls
       $global:UserManager = (Read-Host -Prompt "Users manager not found please check the manager username")
+      $UserManagerCheck = $null
       ManagerCheck 
     }
 else
@@ -279,16 +282,16 @@ AddViewEnt
 
 #Create user
 New-ADUser -Name $UniqueDisplayName -DisplayName $UniqueDisplayName -SamAccountName $UniqueUserName -GivenName $FirstName -Surname $LastName -Initials $MiddleInitial -OfficePhone $PhoneExtension -StreetAddress $UserStreetAddress -City $UserCity -State $UserState -Description $JobDescription -PostalCode $UserZipCode -Country "US" -UserPrincipalName $UserPrincipleName -Title $JobDescription -Department $UserDepartment -Company $UserCompany -Manager $UserManager
-Write-Host "Creating user and mailbox, this can take up to 40 seconds, please be patient"
+Write-Host "Creating user and mailbox, please be patient"
 Set-Aduser -Identity $UniqueUserName -ChangePasswordAtLogon $false
 #Wait 20 seconds to make sure user creation completes and propegates
 Start-Sleep -Seconds 20
 #Attach mailbox to new user
-Enable-Mailbox -Identity $UniqueDisplayName
+Enable-Mailbox -Identity $UniqueUserName
 #Create new email address based on companies defaults
-Set-Mailbox $UniqueDisplayName -EmailAddresses @{add=$EmailAddressExtra} -EmailAddressPolicyEnabled $False 
+Set-Mailbox $UniqueUserName -EmailAddresses @{add=$EmailAddressExtra} -EmailAddressPolicyEnabled $False 
 #Set email retention policies
-Set-Mailbox $UniqueDisplayName -PrimarySmtpAddress $EmailAddressExtra -RetentionPolicy $RetentionPolicy
+Set-Mailbox $UniqueUserName -PrimarySmtpAddress $EmailAddressExtra -RetentionPolicy $RetentionPolicy
 #Disable Active Sync
 Set-CasMailbox -Identity $UniqueDisplayName  -ActiveSyncEnabled $false
 #Copy permissions from user templates
@@ -314,4 +317,20 @@ $AccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule ("$D
 $acl.AddAccessRule($AccessRule)
 Set-Acl -Path "$FileServer\$UniqueUserName" -AclObject $acl -ea Stop
 
-#----------------------------------------------------Create Home Drive End--------------------------------------------------#----#
+#----------------------------------------------------Create Home Drive End--------------------------------------------------#
+
+#----------------------------------------------------Create Report Start----------------------------------------------------------#
+$UserInfoArray = New-Object PSObject
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Username' -Value $UserPrincipleName
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Display Name' -Value $UniqueDisplayName
+$UserInfoArray | Add-Member -type NoteProperty -Name 'First Name' -Value $FirstName
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Middle' -Value $MiddleInitial
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Last Name' -Value $LastName
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Email Address Primary' -Value $EmailAddressExtra
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Phone Ext' -Value $PhoneExtension
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Manager' -Value $UserManager
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Department' -Value $UserDepartment
+$UserInfoArray | Add-Member -type NoteProperty -Name 'View Entitlement Group' -Value $ViewEnt
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Template Used' -Value $UserTemplateCopyFrom
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Home Drive Location' -Value "$FileServer\$UniqueUserName"
+$UserInfoArray | Out-GridView

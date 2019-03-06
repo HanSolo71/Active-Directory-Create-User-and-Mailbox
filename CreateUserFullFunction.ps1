@@ -10,7 +10,7 @@ $LastName = @()
 $UsernameSAMNoSpecial = @()
 $FirstNameNoSpecial = @()
 $LastNameNoSpecial = @()
-$PhoneExtension = @()
+$Global:PhoneExtension = @()
 $Username = @()
 $UniqueUserName = @()
 $UserStreetAddress = @()
@@ -44,6 +44,9 @@ $FileServer = "\\FileServer\H_Drives$"
 $i = $Null
 $global:UserManager = @()
 $global:TemplateOU = "DC=CORP,DC=COM"
+$global:TemplateOU = "DC=CORP,DC=COM"
+$global:DepartmentsOU = 
+$UserDepartment = @()
 
 CLS
 #------------------------------------------------Create username start-----------------------------------------#
@@ -69,16 +72,26 @@ $LastName = (Get-Culture).TextInfo.ToTitleCase($LastName)
 while ([string]::IsNullOrWhiteSpace($LastName)) {$LastName = read-host 'You left the last name empty, please enter a last name.'}
 
 #Gathers user phone extension
-$PhoneExtension = (Read-Host -Prompt 'Please input the users 4 digit exension, numbers only')
-if ($PhoneExtension = [string]::IsNullOrWhiteSpace($PhoneExtension))
+CLS
+$Global:PhoneExtension = (Read-Host -Prompt 'Please input the users 4 digit exension, leave blank if a user has not had a extension assigned')
+
+function PhoneCheck {
+if ($Global:PhoneExtension -match '[0-9][0-9][0-9][0-9]' -and ($Global:PhoneExtension.Length -eq 4))
     {
-$PhoneExtension = $null
     }
+elseif ([string]::IsNullOrWhiteSpace($Global:PhoneExtension))
+{
+$Global:PhoneExtension = $null
+}
 else
-    { 
-#Ensure that phone extension is only 4 numbers
-while ($PhoneExtension -notmatch '[0-9][0-9][0-9][0-9]') {$PhoneExtension = Read-Host -Prompt 'Please only use numbers in the phone extensione and ensure it is 4 characters.'}
+    {
+$Global:PhoneExtension = $null 
+$Global:PhoneExtension = Read-Host -Prompt 'Please input the users 4 digit exension, leave blank if a user has not had a extension assigned'
+PhoneCheck
     }
+}
+PhoneCheck
+
 
 
 #Set users description of their job, for example "Call Center Representative"
@@ -103,6 +116,7 @@ $UsernameSAM = $FirstNameNoSpecial.Substring(0,1) + $MiddleInitial + $LastNameNo
 $UsernameSAM = $UsernameSAM.ToLower()
 
 
+
 #Create Display Username
 $UserNameDisplay = ($FirstName + " " + $LastName)
 
@@ -110,20 +124,17 @@ $UserNameDisplay = ($FirstName + " " + $LastName)
 $UserPrincipleName = $UniqueUserName + "@" + $DomainName
 
 #Check username does not exist, if it does add numbers
-CLS
 $UniqueUserName = $UsernameSAM
 while (Get-ADUser -Filter "SamAccountName -like '$UniqueUserName'"){$UniqueUserName = $UsernameSAM + ++$i}
 
-
 $UniqueNumberAdd = $i
+
 
 #Create User Principle Name
 $UserPrincipleName = $UniqueUserName + "@" + $DomainName
 
 $UniqueDisplayName = $UserNameDisplay
-while (Get-ADUser -Filter 'Name -eq "$UniqueDisplayName"'){$UniqueDisplayName = $UserNameDisplay + $UniqueNumberAdd}
-Write-Host "The new users username is $UniqueDisplayName"
-Write-Host "The new users logon name is $UniqueUsername"
+while (Get-ADUser -Filter "Name -eq '$UniqueDisplayName'"){$UniqueDisplayName = $UserNameDisplay + $UniqueNumberAdd}
 
 #--------------------------------------------Create Username End------------------------------------------------#
 
@@ -172,7 +183,7 @@ while ($UserCountry.Length -ne 2) {$UserCountry = Read-Host -Prompt 'Please only
 #-----------------------------------------------------Create user organization attributes start-----------------------#
 #Function checks for manager existence in active directory
 #Function checks for manager existence in active directory
-
+CLS
 
 function ManagerCheck {
 $UserManagerCheck = Get-ADUser -Filter "SamAccountName -like '$UserManager'"
@@ -194,13 +205,42 @@ else
 
 #Gather organziational data
 #$UserTitle = (Read-Host -Prompt "What is the users job title, for example Network Administrator.")
-$UserDepartment = (Read-Host -Prompt "What is the users department, for example IT.")
+#$UserDepartment = (Read-Host -Prompt "What is the users department, for example IT.")
+CLS
+
+Write-Host "The available departments are are `r`n"
+Get-ADGroup -Filter * -SearchBase $global:DepartmentOU | Select -ExpandProperty Name | Sort-Object -Property Name
+$global:Dept = (Read-Host -Prompt "`r`nWhat department is the user part of")
+
+
+function DeptCheck {
+$DeptCheck = Get-ADGroup -Filter "cn -like '$Dept'"
+if ($DeptCheck = [string]::IsNullOrWhiteSpace($DeptCheck))
+    {
+      cls
+      Write-Host "The available departments are are `r`n"
+      Get-ADGroup -Filter * -SearchBase $global:DepartmentOU| Sort-Object -Property Name | Select -ExpandProperty Name 
+      $global:Dept = (Read-Host -Prompt "`r`nDepartment not found, please try again using full group name")
+      DeptCheck
+    }
+else
+    { 
+        CLS
+    }
+}
+
+DeptCheck
+
+$Dept = (Get-Culture).TextInfo.ToTitleCase($Dept)
+$Dept = $Dept.Replace("Department","")
+#while ([string]::IsNullOrWhiteSpace($UserDepartment)) {$UserDepartment = Read-Host 'You did not put the user in a department, please input the department the user is part of.'}
 $UserCompany = (Read-Host -Prompt "What company does the user work for, if you do not enter data it will default to $DefaultCompany, please press enter if this is correct.")
+CLS
 $UserManager = (Read-Host -Prompt "Who is the users direct supervisor, please use the managers username and not full name.")
 
 #Check attribuites have been populated
 #while ([string]::IsNullOrWhiteSpace($UserTitle)) {$UserTitle = Read-Host 'You left the users title empty, please input a title for this user.'}
-while ([string]::IsNullOrWhiteSpace($UserDepartment)) {$UserDepartment = Read-Host 'You did not put the user in a department, please input the department the user is part of.'}
+
 #Default company name if no input
 while ([string]::IsNullOrWhiteSpace($UserCompany)) {$UserCompany = $DefaultCompany }
 while ([string]::IsNullOrWhiteSpace($UserManager)) {$UserManager = Read-Host 'You left their manager empty, please input a manager username'}
@@ -282,7 +322,7 @@ AddViewEnt
 #----------------------------------------------------Create User Start------------------------------------------------------#
 
 #Create user
-New-ADUser -Name $UniqueDisplayName -DisplayName $UniqueDisplayName -SamAccountName $UniqueUserName -GivenName $FirstName -Surname $LastName -Initials $MiddleInitial -OfficePhone $PhoneExtension -StreetAddress $UserStreetAddress -City $UserCity -State $UserState -Description $JobDescription -PostalCode $UserZipCode -Country "US" -UserPrincipalName $UserPrincipleName -Title $JobDescription -Department $UserDepartment -Company $UserCompany -Manager $UserManager
+New-ADUser -Name $UniqueDisplayName -DisplayName $UniqueUserName -SamAccountName $UniqueUserName -GivenName $FirstName -Surname $LastName -Initials $MiddleInitial -OfficePhone $PhoneExtension -StreetAddress $UserStreetAddress -City $UserCity -State $UserState -Description $JobDescription -PostalCode $UserZipCode -Country "US" -UserPrincipalName $UserPrincipleName -Title $JobDescription -Department $Dept -Company $UserCompany -Manager $UserManager
 Write-Host "Creating user and mailbox, please be patient"
 #Wait 20 seconds to make sure user creation completes and propegates
 Start-Sleep -Seconds 20
@@ -330,7 +370,7 @@ $UserInfoArray | Add-Member -type NoteProperty -Name 'Last Name' -Value $LastNam
 $UserInfoArray | Add-Member -type NoteProperty -Name 'Email Address Primary' -Value $EmailAddressExtra
 $UserInfoArray | Add-Member -type NoteProperty -Name 'Phone Ext' -Value $PhoneExtension
 $UserInfoArray | Add-Member -type NoteProperty -Name 'Manager' -Value $UserManager
-$UserInfoArray | Add-Member -type NoteProperty -Name 'Department' -Value $UserDepartment
+$UserInfoArray | Add-Member -type NoteProperty -Name 'Department' -Value $Dept
 $UserInfoArray | Add-Member -type NoteProperty -Name 'View Entitlement Group' -Value $ViewEnt
 $UserInfoArray | Add-Member -type NoteProperty -Name 'Template Used' -Value $UserTemplateCopyFrom
 $UserInfoArray | Add-Member -type NoteProperty -Name 'Home Drive Location' -Value "$FileServer\$UniqueUserName"

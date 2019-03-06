@@ -68,17 +68,18 @@ $LastName = (Get-Culture).TextInfo.ToTitleCase($LastName)
 #Ensure that last name is not empty
 while ([string]::IsNullOrWhiteSpace($LastName)) {$LastName = read-host 'You left the last name empty, please enter a last name.'}
 
-#Gathers user phone extension, required input, mustn ot be empty or null, and must only user numbers
+#Gathers user phone extension
 $PhoneExtension = (Read-Host -Prompt 'Please input the users 4 digit exension, numbers only')
-
+if ($PhoneExtension = [string]::IsNullOrWhiteSpace($PhoneExtension))
+    {
+$PhoneExtension = $null
+    }
+else
+    { 
 #Ensure that phone extension is only 4 numbers
 while ($PhoneExtension -notmatch '[0-9][0-9][0-9][0-9]') {$PhoneExtension = Read-Host -Prompt 'Please only use numbers in the phone extensione and ensure it is 4 characters.'}
+    }
 
-#Ensure that phone extension is only 4 charcters long
-while ($PhoneExtension.Length -ne 4) {$PhoneExtension = Read-Host -Prompt 'Please only use the 4 digit extension'}
-
-#Ensure that phone extension is not empty
-while ([string]::IsNullOrWhiteSpace($PhoneExtension)) {$PhoneExtension = read-host 'You left the phone extension empty, please input a 4 digit extension'}
 
 #Set users description of their job, for example "Call Center Representative"
 $JobDescription = (Read-Host -Prompt 'Please input a title for the users position, for example "Call Center Representative"')
@@ -283,21 +284,21 @@ AddViewEnt
 #Create user
 New-ADUser -Name $UniqueDisplayName -DisplayName $UniqueDisplayName -SamAccountName $UniqueUserName -GivenName $FirstName -Surname $LastName -Initials $MiddleInitial -OfficePhone $PhoneExtension -StreetAddress $UserStreetAddress -City $UserCity -State $UserState -Description $JobDescription -PostalCode $UserZipCode -Country "US" -UserPrincipalName $UserPrincipleName -Title $JobDescription -Department $UserDepartment -Company $UserCompany -Manager $UserManager
 Write-Host "Creating user and mailbox, please be patient"
-Set-Aduser -Identity $UniqueUserName -ChangePasswordAtLogon $false
 #Wait 20 seconds to make sure user creation completes and propegates
 Start-Sleep -Seconds 20
 #Attach mailbox to new user
-Enable-Mailbox -Identity $UniqueUserName
+Enable-Mailbox -Identity $UserPrincipleName
 #Create new email address based on companies defaults
-Set-Mailbox $UniqueUserName -EmailAddresses @{add=$EmailAddressExtra} -EmailAddressPolicyEnabled $False 
+Set-Mailbox $UserPrincipleName -EmailAddresses @{add=$EmailAddressExtra} -EmailAddressPolicyEnabled $False 
 #Set email retention policies
-Set-Mailbox $UniqueUserName -PrimarySmtpAddress $EmailAddressExtra -RetentionPolicy $RetentionPolicy
+Set-Mailbox $UserPrincipleName -PrimarySmtpAddress $EmailAddressExtra -RetentionPolicy $RetentionPolicy
 #Disable Active Sync
-Set-CasMailbox -Identity $UniqueDisplayName  -ActiveSyncEnabled $false
+Set-CasMailbox -Identity $UserPrincipleName  -ActiveSyncEnabled $false
 #Copy permissions from user templates
 get-ADuser -identity $UserTemplateCopyFrom -properties memberof | select-object memberof -expandproperty memberof | Add-AdGroupMember -Members $UniqueUserName
 #Adds user to Horizon View Entitlement
 Add-ADGroupMember -Identity $ViewEnt -Members $UsernameSAM
+Set-Aduser -Identity $UniqueUserName -ChangePasswordAtLogon $false
 
 #----------------------------------------------------Create User End--------------------------------------------------------#
 
@@ -334,3 +335,4 @@ $UserInfoArray | Add-Member -type NoteProperty -Name 'View Entitlement Group' -V
 $UserInfoArray | Add-Member -type NoteProperty -Name 'Template Used' -Value $UserTemplateCopyFrom
 $UserInfoArray | Add-Member -type NoteProperty -Name 'Home Drive Location' -Value "$FileServer\$UniqueUserName"
 $UserInfoArray | Out-GridView
+#----------------------------------------------------Create Report End----------------------------------------------------------#
